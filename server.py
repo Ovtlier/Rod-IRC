@@ -70,7 +70,7 @@ class ClientThread(threading.Thread):
                 with open("userlog.txt", "a") as user_log:
                     user_log.write(f"{log_num}; {log_timestamp}; {username}; {self.address}\n")
                 logged_in = True
-                print("User {} has connected from {}.".format(self.username, self.address))
+                print("{} has connected from {}.".format(self.username, self.address))
             else:
                 message = "INVALID"
                 TCP_Send(self.socket, message.encode())

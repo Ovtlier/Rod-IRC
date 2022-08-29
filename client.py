@@ -197,7 +197,11 @@ class TCP_Client(QtCore.QThread):
         userList = pickle.loads(TCP_Recv(self.socket))
         self.populateUserList.emit(userList)
         while self.state:
-            self.__listen()
+            try:
+                self.__listen()
+            except:
+                print("Server has shutdown. Bye!")
+                sys.exit()
 
     def __listen(self):
         data = TCP_Recv(self.socket).decode()
