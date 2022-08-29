@@ -31,6 +31,7 @@ class ClientThread(threading.Thread):
         self.__login()
         clients[self.username] = clients.get(self.username, socket)
         self.state = True
+        self.__updateActiveUsers("ADD", self.username)
         print("New client thread made!")
 
     def run(self):
@@ -102,6 +103,7 @@ class ClientThread(threading.Thread):
             del clients[user]
 
         for c in clients:
+            TCP_Send(clients[c], "ACTIVE USER".encode())
             TCP_Send(clients[c], prefix.encode())
             TCP_Send(clients[c], user.encode())
 

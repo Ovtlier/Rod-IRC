@@ -15,6 +15,8 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         super().__init__()
         self.client = TCP_Client()
         self.client.updateMessage.connect(self.displayMessage)
+        self.client.addUserToList.connect(self.addUserToList)
+        self.client.removeUserFromList.connect(self.removeUserFromList)
         self.client.start()
         
         self.setObjectName("MainWindow")
@@ -75,7 +77,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 "font: 75 16pt \"Arial\";\n"
 "color:rgb(255, 255, 255);")
         self.userList.setObjectName("userList")
-        self.userList.itemClicked.connect(lambda: self.copyUser(self.userList.selectedItems()[0]))
+        self.userList.itemClicked.connect(self.copyUser)
         self.userList.setFocusPolicy(Qt.NoFocus)
 
         self.userListLabel = QtWidgets.QLabel(self.frame)
@@ -99,7 +101,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.messageInput.setObjectName("messageInput")
         self.messageInput.setFocus()
 
-        self.pushButton.clicked.connect(lambda: self.sendMessage())
+        self.pushButton.clicked.connect(self.sendMessage)
 
         self.frame.raise_()
         self.pushButton.raise_()
@@ -135,7 +137,8 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
     def displayMessage(self, message):
         self.messageWindow.append(message)
 
-    def copyUser(self, user):
+    def copyUser(self):
+        user = self.userList.selectedItems()[0]
         QApplication.clipboard().setText(user.text())
 
     def removeUserFromList(self, user):
@@ -151,6 +154,8 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 class TCP_Client(QtCore.QThread):
 
     updateMessage = QtCore.pyqtSignal(object)
+    addUserToList = QtCore.pyqtSignal(object)
+    removeUserFromList = QtCore.pyqtSignal(object)
 
     def __init__(self):
         QtCore.QThread.__init__(self)
@@ -200,16 +205,15 @@ class TCP_Client(QtCore.QThread):
         while self.state:
             self.__listen()
 
-
     def __listen(self):
         data = TCP_Recv(self.socket).decode()
         if data == "ACTIVE USER":
             data = TCP_Recv(self.socket).decode()
             if data == "ADD":
                 data = TCP_Recv(self.socket).decode()
-                self.gui.addUserToList(data)##############################
+                self.addUserToList.emit(data)
             elif data == "REMOVE":
-                self.gui.removeUserFromList(data)############################
+                self.removeUserFromList.emit(data)
         elif data == "MESSAGE":
             data = TCP_Recv(self.socket).decode()
             self.updateMessage.emit(data)
