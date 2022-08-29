@@ -1,0 +1,5 @@
+.vscode
+__pycache__
+credentials.txt
+messagelog.txt
+userlog.txt
