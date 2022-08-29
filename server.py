@@ -21,25 +21,24 @@ with open("credentials.txt", "r") as f:
     for user in creds:
         username, password = user.split()
         valid_accounts[username] = valid_accounts.get(username, password)
-print(valid_accounts)
 
 class ClientThread(threading.Thread):
     def __init__(self, address, socket):
         threading.Thread.__init__(self)
         self.username = None
+        self.a_user = {}
         self.address = address
         self.socket = socket
+
+    def run(self):
         self.__login()
-        clients[self.username] = clients.get(self.username, socket)
+        clients[self.username] = clients.get(self.username, self.socket)
         self.state = True
         self.__sendActiveUsers()
         self.__updateOtherUsers("ADD")
-        print("New client thread made!")
 
-    def run(self):
         while self.state:
             self.__listen()
-        print("Client loop has ended")
         self.socket.close()
         sys.stdout.flush()
 
@@ -58,17 +57,15 @@ class ClientThread(threading.Thread):
         while not logged_in:
             data = TCP_Recv(self.socket)
             password = data.decode()
-            print(f"CHECK {password} == {valid_accounts[self.username]}")
             is_correct_password = password == valid_accounts[self.username]
             if is_correct_password:
                 data = "VALID"
                 TCP_Send(self.socket, data.encode())
                 log_timestamp = datetime.now().strftime("%d %b %Y %H:%M:%S")
-                a_user = {}
-                a_user["username"] = self.username
-                a_user["ip"] = self.address[0]
-                a_user["login_time"] = log_timestamp
-                curr_active_users.append(a_user)
+                self.a_user["username"] = self.username
+                self.a_user["ip"] = self.address[0]
+                self.a_user["login_time"] = log_timestamp
+                curr_active_users.append(self.a_user)
                 log_num = len(curr_active_users)
                 with open("userlog.txt", "a") as user_log:
                     user_log.write(f"{log_num}; {log_timestamp}; {username}; {self.address}\n")
@@ -82,6 +79,7 @@ class ClientThread(threading.Thread):
         data = TCP_Recv(self.socket).decode()
         if data == None or data == "EXIT":
             print("{} from {} has exited.".format(self.username, self.address))
+            curr_active_users.remove(self.a_user)
             self.__updateOtherUsers("REMOVE")
             self.state = False
         elif data == "MESSAGE":
@@ -92,7 +90,6 @@ class ClientThread(threading.Thread):
             self.__write_to_log("messagelog.txt", log_data)
             prettyMessage = f"({log_timestamp}) {self.username}: {data}"
             self.__speak(prettyMessage)
-            print(log_data)
 
     def __speak(self, data):
         for c in clients:

@@ -102,6 +102,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 "color:rgb(255, 255, 255);")
         self.messageInput.setObjectName("messageInput")
         self.messageInput.setFocus()
+        self.messageInput.installEventFilter(self)
 
         self.pushButton.clicked.connect(self.sendMessage)
 
@@ -144,15 +145,14 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         QApplication.clipboard().setText(user.text())
 
     def removeUserFromList(self, user):
-        self.userList.removeItemWidget(self.userList.findItems(user[0], QtCore.Qt.MatchExactly)[0])
+        item = self.userList.findItems(user, QtCore.Qt.MatchExactly)[0]
+        self.userList.takeItem(self.userList.row(item))
 
     def addUserToList(self, user):
         self.userList.addItem(user)
         self.userList.sortItems()
 
     def populateUserList(self, userList):
-        print("Userlist: ")
-        print(userList)
         sys.stdout.flush()
         for user in userList:
             self.userList.addItem(user["username"])
@@ -161,6 +161,13 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.client.closeClient()
         return super().closeEvent(a0)
+
+    def eventFilter(self, obj, event):
+        if event.type() == QtCore.QEvent.KeyPress and obj is self.messageInput:
+            if event.key() == QtCore.Qt.Key_Return and self.messageInput.hasFocus():
+                self.sendMessage()
+                return True
+        return super().eventFilter(obj, event)
 
 class TCP_Client(QtCore.QThread):
 
@@ -173,20 +180,40 @@ class TCP_Client(QtCore.QThread):
         QtCore.QThread.__init__(self)
         self.daemon = True
         self.state = True
-        if len(sys.argv) != 3:
-            print("Usage: python3 client.py server_IP server_port")
-            exit(0)
 
-        self.server_host = sys.argv[1]
-        self.server_port = int(sys.argv[2])
-        #self.upd_port = sys.argv[3]
-        
-        self.server_address = (self.server_host, self.server_port)
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect(self.server_address)
-        self.upd_port = "1111"
+        self.server_host = "192.168.8.103"
+        self.server_port = 9999
 
+        try:
+            self.server_address = (self.server_host, self.server_port)
+            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.connect(self.server_address)
+        except:
+            print("Server is not online.")
+            sys.exit()
+    
+    def run(self):
+        self.__login()
+        userList = pickle.loads(TCP_Recv(self.socket))
+        self.populateUserList.emit(userList)
+        while self.state:
+            self.__listen()
 
+    def __listen(self):
+        data = TCP_Recv(self.socket).decode()
+        if data == "ACTIVE USER":
+            data = TCP_Recv(self.socket).decode()
+            if data == "ADD":
+                data = TCP_Recv(self.socket).decode()
+                self.addUserToList.emit(data)
+            elif data == "REMOVE":
+                data = TCP_Recv(self.socket).decode()
+                self.removeUserFromList.emit(data)
+        elif data == "MESSAGE":
+            data = TCP_Recv(self.socket).decode()
+            self.updateMessage.emit(data)
+
+    def __login(self):
         # LOGIN
         # Username
         username = input("Username: ")
@@ -208,30 +235,6 @@ class TCP_Client(QtCore.QThread):
                 logged_in = True
             else:
                 print("Invalid Password. Please try again")
-
-    def __del__(self):
-        print("Destructing client...")
-        sys.stdout.flush()
-    
-    def run(self):
-        userList = pickle.loads(TCP_Recv(self.socket))
-        self.populateUserList.emit(userList)
-        while self.state:
-            self.__listen()
-
-    def __listen(self):
-        data = TCP_Recv(self.socket).decode()
-        if data == "ACTIVE USER":
-            data = TCP_Recv(self.socket).decode()
-            if data == "ADD":
-                data = TCP_Recv(self.socket).decode()
-                self.addUserToList.emit(data)
-            elif data == "REMOVE":
-                data = TCP_Recv(self.socket).decode()
-                self.removeUserFromList.emit(data)
-        elif data == "MESSAGE":
-            data = TCP_Recv(self.socket).decode()
-            self.updateMessage.emit(data)
 
     def closeClient(self):
         TCP_Send(self.socket, "EXIT".encode())
