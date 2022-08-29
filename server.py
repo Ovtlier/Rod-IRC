@@ -8,6 +8,7 @@ from tcp import TCP_Recv, TCP_Send
 import sys
 import socket
 import threading
+import pickle
 
 curr_active_users = []                  # List for now?
 private_rooms = []
@@ -31,7 +32,8 @@ class ClientThread(threading.Thread):
         self.__login()
         clients[self.username] = clients.get(self.username, socket)
         self.state = True
-        self.__updateActiveUsers("ADD", self.username)
+        self.__sendActiveUsers()
+        self.__updateOtherUsers("ADD")
         print("New client thread made!")
 
     def run(self):
@@ -80,7 +82,7 @@ class ClientThread(threading.Thread):
         data = TCP_Recv(self.socket).decode()
         if data == None or data == "EXIT":
             print("{} from {} has exited.".format(self.username, self.address))
-            self.__updateActiveUsers("REMOVE", self.username)
+            self.__updateOtherUsers("REMOVE")
             self.state = False
         elif data == "MESSAGE":
             data = TCP_Recv(self.socket).decode()
@@ -98,18 +100,22 @@ class ClientThread(threading.Thread):
             TCP_Send(clients[c], prefix.encode())
             TCP_Send(clients[c], data.encode())
 
-    def __updateActiveUsers(self, prefix, user):
+    def __updateOtherUsers(self, prefix):
         if prefix == "REMOVE":
-            del clients[user]
+            del clients[self.username]
 
         for c in clients:
-            TCP_Send(clients[c], "ACTIVE USER".encode())
-            TCP_Send(clients[c], prefix.encode())
-            TCP_Send(clients[c], user.encode())
+            if c != self.username:
+                TCP_Send(clients[c], "ACTIVE USER".encode())
+                TCP_Send(clients[c], prefix.encode())
+                TCP_Send(clients[c], self.username.encode())
 
     def __write_to_log(self, log_name, data):
         with open(log_name, "a") as f:
             f.write(data + "\n")
+
+    def __sendActiveUsers(self):
+        TCP_Send(self.socket, pickle.dumps(curr_active_users))
 
 if __name__ == "__main__":
     # Error checking given args

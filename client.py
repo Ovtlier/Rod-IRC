@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import * 
 from PyQt5.QtCore import * 
 import socket
+import pickle
 import sys
 from tcp import *
 
@@ -17,6 +18,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.client.updateMessage.connect(self.displayMessage)
         self.client.addUserToList.connect(self.addUserToList)
         self.client.removeUserFromList.connect(self.removeUserFromList)
+        self.client.populateUserList.connect(self.populateUserList)
         self.client.start()
         
         self.setObjectName("MainWindow")
@@ -142,10 +144,19 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         QApplication.clipboard().setText(user.text())
 
     def removeUserFromList(self, user):
-        self.userList.removeItemWidget(self.userList.findItems(user)[0])
+        self.userList.removeItemWidget(self.userList.findItems(user[0], QtCore.Qt.MatchExactly)[0])
 
     def addUserToList(self, user):
         self.userList.addItem(user)
+        self.userList.sortItems()
+
+    def populateUserList(self, userList):
+        print("Userlist: ")
+        print(userList)
+        sys.stdout.flush()
+        for user in userList:
+            self.userList.addItem(user["username"])
+        self.userList.sortItems()
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.client.closeClient()
@@ -156,6 +167,7 @@ class TCP_Client(QtCore.QThread):
     updateMessage = QtCore.pyqtSignal(object)
     addUserToList = QtCore.pyqtSignal(object)
     removeUserFromList = QtCore.pyqtSignal(object)
+    populateUserList = QtCore.pyqtSignal(object)
 
     def __init__(self):
         QtCore.QThread.__init__(self)
@@ -202,6 +214,8 @@ class TCP_Client(QtCore.QThread):
         sys.stdout.flush()
     
     def run(self):
+        userList = pickle.loads(TCP_Recv(self.socket))
+        self.populateUserList.emit(userList)
         while self.state:
             self.__listen()
 
@@ -213,6 +227,7 @@ class TCP_Client(QtCore.QThread):
                 data = TCP_Recv(self.socket).decode()
                 self.addUserToList.emit(data)
             elif data == "REMOVE":
+                data = TCP_Recv(self.socket).decode()
                 self.removeUserFromList.emit(data)
         elif data == "MESSAGE":
             data = TCP_Recv(self.socket).decode()
