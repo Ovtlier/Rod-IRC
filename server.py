@@ -26,60 +26,62 @@ class ClientThread(threading.Thread):
     def __init__(self, address, socket):
         threading.Thread.__init__(self)
         self.username = None
-        self.a_user = {}
         self.address = address
         self.socket = socket
+        self.loggedIn = False
+        self.state = True
 
     def run(self):
         self.__login()
-        clients[self.username] = clients.get(self.username, self.socket)
-        self.state = True
-        self.__sendActiveUsers()
-        self.__updateOtherUsers("ADD")
-
         while self.state:
-            self.__listen()
+            if not self.loggedIn:
+                self.__login()
+            else:
+                self.__listen()
         self.socket.close()
-        sys.stdout.flush()
 
     def __login(self):
-        data = TCP_Recv(self.socket)
-        self.username = data.decode()
-        while self.username not in valid_accounts:
-            data = "INVALID"
-            TCP_Send(self.socket, data.encode())
-            data = TCP_Recv(self.socket)
-            self.username = data.decode()
-        logged_in = False
-        data = "VALID"
-        TCP_Send(self.socket, data.encode())
-        
-        while not logged_in:
-            data = TCP_Recv(self.socket)
-            password = data.decode()
-            is_correct_password = password == valid_accounts[self.username]
-            if is_correct_password:
-                data = "VALID"
+        try:
+            given_username = TCP_Recv(self.socket).decode()
+            given_password = TCP_Recv(self.socket).decode()
+            if given_username not in valid_accounts:
+                data = "INVALID USERNAME"
                 TCP_Send(self.socket, data.encode())
-                log_timestamp = datetime.now().strftime("%d %b %Y %H:%M:%S")
-                self.a_user["username"] = self.username
-                self.a_user["ip"] = self.address[0]
-                self.a_user["login_time"] = log_timestamp
-                curr_active_users.append(self.a_user)
-                log_num = len(curr_active_users)
-                with open("userlog.txt", "a") as user_log:
-                    user_log.write(f"{log_num}; {log_timestamp}; {username}; {self.address}\n")
-                logged_in = True
-                print("{} has connected from {}.".format(self.username, self.address))
+            elif given_password != valid_accounts[given_username]:
+                data = "INVALID PASSWORD"
+                TCP_Send(self.socket, data.encode())
             else:
-                message = "INVALID"
-                TCP_Send(self.socket, message.encode())
+                if given_username in curr_active_users:
+                    data = "EXISTING"
+                    TCP_Send(self.socket, data.encode())
+                else:
+                    self.username = given_username
+                    data = "VALID LOGIN"
+                    TCP_Send(self.socket, data.encode())
+
+                    log_timestamp = datetime.now().strftime("%d %b %Y %H:%M:%S")
+                    #self.a_user["username"] = self.username
+                    #self.a_user["ip"] = self.address[0]
+                    #self.a_user["login_time"] = log_timestamp
+                    curr_active_users.append(self.username)
+                    log_num = len(curr_active_users)
+                    with open("userlog.txt", "a") as user_log:
+                        user_log.write(f"{log_num}; {log_timestamp}; {self.username}; {self.address}\n")
+                    self.loggedIn = True
+                    print("{} has connected from {}.".format(self.username, self.address))
+                    
+                    clients[self.username] = clients.get(self.username, self.socket)
+                    self.__sendActiveUsers()
+                    self.__updateOtherUsers("ADD")
+        except ConnectionResetError as e:
+            print("Connection from {} has exited before login.".format(self.address))
+            self.state = False
 
     def __listen(self):
         data = TCP_Recv(self.socket).decode()
         if data == None or data == "EXIT":
             print("{} from {} has exited.".format(self.username, self.address))
-            curr_active_users.remove(self.a_user)
+            curr_active_users.remove(self.username)
             self.__updateOtherUsers("REMOVE")
             self.state = False
         elif data == "MESSAGE":

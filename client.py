@@ -2,32 +2,128 @@
 
 # Author: Rodney Boyce
 
-from PyQt5 import QtWidgets, QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import * 
-from PyQt5.QtCore import * 
+from PyQt5 import QtWidgets, QtCore, QtGui
+
 import socket
 import pickle
 import sys
 from tcp import *
 
-class Ui_MainWindow(QtWidgets.QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.client = TCP_Client()
+class LoginWindow(QtWidgets.QMainWindow):
+    switchWindows = QtCore.pyqtSignal()
+
+    def __init__(self, client, parent=None):
+        super(LoginWindow, self).__init__(parent)
+        self.client = client
+        self.setupUI()
+
+    def setupUI(self):
+        self.setObjectName("MainWindow")
+        self.resize(1253, 703)
+        self.setStyleSheet("background-color: rgb(170, 0, 0);")
+        self.centralwidget = QtWidgets.QWidget(self)
+        self.centralwidget.setObjectName("centralwidget")
+
+        self.mainTitleLabel = QtWidgets.QLabel(self.centralwidget)
+        self.mainTitleLabel.setGeometry(QtCore.QRect(10, 10, 1231, 461))
+        font = QtGui.QFont()
+        font.setFamily("Showcard Gothic")
+        font.setPointSize(90)
+        self.mainTitleLabel.setFont(font)
+        self.mainTitleLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.mainTitleLabel.setObjectName("mainTitleLabel")
+
+        self.usernameInput = QtWidgets.QLineEdit(self.centralwidget)
+        self.usernameInput.setGeometry(QtCore.QRect(350, 530, 271, 41))
+        self.usernameInput.setObjectName("usernameInput")
+
+        self.passwordInput = QtWidgets.QLineEdit(self.centralwidget)
+        self.passwordInput.setGeometry(QtCore.QRect(640, 530, 271, 41))
+        self.passwordInput.setObjectName("passwordInput")
+
+        self.loginButton = QtWidgets.QPushButton(self.centralwidget)
+        self.loginButton.setGeometry(QtCore.QRect(350, 580, 561, 71))
+        font = QtGui.QFont()
+        font.setFamily("Showcard Gothic")
+        font.setPointSize(20)
+
+        self.loginButton.setFont(font)
+        self.loginButton.setStyleSheet("border-color: rgb(0, 0, 0);\n"
+"border-width : 3px;\n"
+"border-style:solid;")
+        self.loginButton.setObjectName("loginButton")
+        self.loginButton.clicked.connect(self.login)
+
+        self.usernameLabel = QtWidgets.QLabel(self.centralwidget)
+        self.usernameLabel.setGeometry(QtCore.QRect(350, 490, 271, 31))
+        font = QtGui.QFont()
+        font.setFamily("Showcard Gothic")
+        font.setPointSize(20)
+        self.usernameLabel.setFont(font)
+        self.usernameLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.usernameLabel.setObjectName("usernameLabel")
+
+        self.passwordLabel = QtWidgets.QLabel(self.centralwidget)
+        self.passwordLabel.setGeometry(QtCore.QRect(640, 490, 271, 31))
+        font = QtGui.QFont()
+        font.setFamily("Showcard Gothic")
+        font.setPointSize(20)
+        self.passwordLabel.setFont(font)
+        self.passwordLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.passwordLabel.setObjectName("passwordLabel")
+
+        self.setCentralWidget(self.centralwidget)
+        self.menubar = QtWidgets.QMenuBar(self)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1253, 21))
+        self.menubar.setObjectName("menubar")
+        self.setMenuBar(self.menubar)
+        self.statusbar = QtWidgets.QStatusBar(self)
+        self.statusbar.setObjectName("statusbar")
+        self.setStatusBar(self.statusbar)
+
+        self.retranslateUi()
+        QtCore.QMetaObject.connectSlotsByName(self)
+
+    def retranslateUi(self):
+        _translate = QtCore.QCoreApplication.translate
+        self.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.mainTitleLabel.setText(_translate("MainWindow", "Rod\'s IRC"))
+        self.loginButton.setText(_translate("MainWindow", "LOGIN"))
+        self.usernameLabel.setText(_translate("MainWindow", "Username"))
+        self.passwordLabel.setText(_translate("MainWindow", "Password"))
+
+    def login(self):
+        given_username = self.usernameInput.text()
+        given_password = self.passwordInput.text()
+        loginStatus = self.client.login(given_username, given_password)
+        if loginStatus == "VALID LOGIN":
+            self.client.start()
+            self.switchWindows.emit()
+        elif loginStatus == "INVALID USERNAME":
+            # TODO Create popup windows for these errors
+            pass
+        elif loginStatus == "INVALID PASSWORD":
+            # TODO Create popup windows for these errors
+            pass
+        elif loginStatus == "EXISTING":
+            # TODO Create popup windows for these errors
+            pass
+
+class MessageWindow(QtWidgets.QMainWindow):
+    def __init__(self, client, parent=None):
+        super(MessageWindow, self).__init__(parent)
+        self.client = client
         self.client.updateMessage.connect(self.displayMessage)
         self.client.addUserToList.connect(self.addUserToList)
         self.client.removeUserFromList.connect(self.removeUserFromList)
         self.client.populateUserList.connect(self.populateUserList)
-        self.client.start()
-        
-        self.setObjectName("MainWindow")
-        self.setFixedSize(1253, 703)
-        self.setStyleSheet("background-color: rgb(170, 0, 0);")
+        self.setupUI()
 
-    def setupUi(self):
-        
-        self.centralwidget = QtWidgets.QWidget()
+    def setupUI(self):
+        self.setObjectName("MainWindow")
+        self.resize(1253, 703)
+        self.setStyleSheet("background-color: rgb(170, 0, 0);")
+        self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
 
         self.pushButton = QtWidgets.QPushButton(self.centralwidget)
@@ -38,7 +134,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 "border-style:solid;\n"
 "font: 81 20pt \"Rockwell Extra Bold\";")
         self.pushButton.setObjectName("pushButton")
-        self.pushButton.setFocusPolicy(Qt.NoFocus)
+        self.pushButton.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.messageWindow = QtWidgets.QTextEdit(self.centralwidget)
         self.messageWindow.setGeometry(QtCore.QRect(20, 60, 931, 531))
@@ -50,7 +146,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 "color:rgb(255, 255, 255);")
         self.messageWindow.setObjectName("messageWindow")
         self.messageWindow.setReadOnly(True)
-        self.messageWindow.setFocusPolicy(Qt.NoFocus)
+        self.messageWindow.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.titleLabel = QtWidgets.QLabel(self.centralwidget)
         self.titleLabel.setGeometry(QtCore.QRect(20, 10, 931, 41))
@@ -80,7 +176,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 "color:rgb(255, 255, 255);")
         self.userList.setObjectName("userList")
         self.userList.itemClicked.connect(self.copyUser)
-        self.userList.setFocusPolicy(Qt.NoFocus)
+        self.userList.setFocusPolicy(QtCore.Qt.NoFocus)
 
         self.userListLabel = QtWidgets.QLabel(self.frame)
         self.userListLabel.setGeometry(QtCore.QRect(10, 30, 261, 41))
@@ -133,16 +229,17 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
     def sendMessage(self):
         data = self.messageInput.toPlainText()
-        self.messageInput.clear()
-        TCP_Send(self.client.socket, "MESSAGE".encode())
-        TCP_Send(self.client.socket, data.encode())
+        if data != "":
+            self.messageInput.clear()
+            TCP_Send(self.client.socket, "MESSAGE".encode())
+            TCP_Send(self.client.socket, data.encode())
 
     def displayMessage(self, message):
         self.messageWindow.append(message)
 
     def copyUser(self):
         user = self.userList.selectedItems()[0]
-        QApplication.clipboard().setText(user.text())
+        QtWidgets.QApplication.clipboard().setText(user.text())
 
     def removeUserFromList(self, user):
         item = self.userList.findItems(user, QtCore.Qt.MatchExactly)[0]
@@ -153,14 +250,9 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.userList.sortItems()
 
     def populateUserList(self, userList):
-        sys.stdout.flush()
-        for user in userList:
-            self.userList.addItem(user["username"])
+        self.userList.clear()
+        self.userList.addItems(userList)
         self.userList.sortItems()
-
-    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
-        self.client.closeClient()
-        return super().closeEvent(a0)
 
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.KeyPress and obj is self.messageInput:
@@ -170,7 +262,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         return super().eventFilter(obj, event)
 
 class TCP_Client(QtCore.QThread):
-
     updateMessage = QtCore.pyqtSignal(object)
     addUserToList = QtCore.pyqtSignal(object)
     removeUserFromList = QtCore.pyqtSignal(object)
@@ -193,7 +284,6 @@ class TCP_Client(QtCore.QThread):
             sys.exit()
     
     def run(self):
-        self.__login()
         userList = pickle.loads(TCP_Recv(self.socket))
         self.populateUserList.emit(userList)
         while self.state:
@@ -217,74 +307,36 @@ class TCP_Client(QtCore.QThread):
             data = TCP_Recv(self.socket).decode()
             self.updateMessage.emit(data)
 
-    def __login(self):
-        # LOGIN
-        # Username
-        username = input("Username: ")
-        TCP_Send(self.socket, username.encode())
-        data = TCP_Recv(self.socket).decode()
-        while data == "INVALID":
-            print("Invalid Username. Please try again")
-            username = input("Username: ")
-            TCP_Send(self.socket, username.encode())
-            data = TCP_Recv(self.socket).decode()
-            
-        # Password
-        logged_in = False
-        while not logged_in:
-            password = input("Password: ")
-            TCP_Send(self.socket, password.encode())
-            data = TCP_Recv(self.socket).decode()
-            if data == "VALID":
-                logged_in = True
-            else:
-                print("Invalid Password. Please try again")
+    def login(self, u, p):
+        TCP_Send(self.socket, u.encode())
+        TCP_Send(self.socket, p.encode())
+        return TCP_Recv(self.socket).decode()
+    
 
     def closeClient(self):
         TCP_Send(self.socket, "EXIT".encode())
         self.state = False
 
+class MainWindow(QtWidgets.QStackedWidget):
+    def __init__(self, client, parent = None):
+        super(MainWindow, self).__init__(parent)
+        self.client = client
+    
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
+        self.client.closeClient()
+        return super().closeEvent(a0)
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    gui = Ui_MainWindow()
-    gui.setupUi()
-    gui.show()
+    client = TCP_Client()
+    widgetStack = MainWindow(client)
+    loginWindow = LoginWindow(client)
+    messageWindow = MessageWindow(client)
+    widgetStack.addWidget(loginWindow)
+    widgetStack.addWidget(messageWindow)
+    loginWindow.switchWindows.connect(lambda: widgetStack.setCurrentIndex(1))
+
+    widgetStack.setFixedSize(1253, 703)
+    widgetStack.show()
 
     sys.exit(app.exec_())
-
-
-'''
-            TCP_Send(self.client_socket, message.encode())
-
-            # receive response from the server
-            # 1024 is a suggested packet size, you can specify it as 2048 or others
-            data = TCP_Recv(self.client_socket)
-            received_message = data.decode()
-
-            # parse the message received from server and take corresponding actions
-            if received_message == "":
-                print("[recv] Message from server is empty!")
-            elif received_message == "logout":
-                message = self.username
-                TCP_Send(self.client_socket, message.encode())
-                message = TCP_Recv(self.client_socket).decode()
-                print(message)
-                print(f"Bye, {self.username}!")
-                break
-            elif received_message == "Broadcast message":
-                message = self.username
-                TCP_Send(self.client_socket, message.encode())
-                message = TCP_Recv(self.client_socket).decode()
-                print(message)
-            elif received_message == "Active users":
-                message = self.username
-                TCP_Send(self.client_socket, message.encode())
-                num_users = int(TCP_Recv(self.client_socket).decode())
-                if num_users != 0:
-                    for i in range(0, num_users):
-                        a_user = TCP_Recv(self.client_socket).decode()
-                        print(a_user)
-                else:
-                    error = TCP_Recv(self.client_socket).decode()
-                    print(error)
-'''
